@@ -6,7 +6,13 @@
 #include <winhttp.h>
 
 #include <algorithm>
+#include <bcrypt.h>
+#include <array>
+#include <cwctype>
 #include <thread>
+#include <vector>
+#include <cctype>
+#include <utility>
 
 // Injected by CMake from the project version / release tag; falls back to a
 // sentinel so the app still builds (and reports "an update is available") if it
@@ -67,6 +73,65 @@ std::string ExtractJsonString(const std::string& json, const char* key)
     if (open == std::string::npos)
         return std::string();
     return ReadJsonStringAt(json, open);
+}
+
+// Extract a named release asset from GitHub's release metadata.
+// Release asset names are constrained to the ASCII versioned filename format.
+std::string NarrowAscii(const std::wstring& value)
+{
+    std::string result;
+    result.reserve(value.size());
+    for (const wchar_t c : value)
+    {
+        if (c < 0 || c > 0x7f)
+            return {};
+        result.push_back(static_cast<char>(c));
+    }
+    return result;
+}
+
+std::wstring ReleaseAsset(const std::string& json, const std::string& assetName)
+{
+    // GitHub's JSON usually has whitespace after colons.
+    size_t p = json.find("\"name\"");
+    while (p != std::string::npos)
+    {
+        const size_t colon = json.find(':', p + 6);
+        if (colon == std::string::npos) break;
+        const size_t quote = json.find('"', colon + 1);
+        if (quote == std::string::npos) break;
+        if (ReadJsonStringAt(json, quote) == assetName)
+        {
+            const size_t after = json.find("\"browser_download_url\"", quote + 1);
+            const size_t next = json.find("\"name\"", quote + 1);
+            if (after == std::string::npos || (next != std::string::npos && next < after))
+                return L"";
+            const size_t assetColon = json.find(':', after);
+            const size_t assetQuote = json.find('"', assetColon + 1);
+            return assetQuote == std::string::npos ? L"" :
+                Widen(ReadJsonStringAt(json, assetQuote));
+        }
+        p = json.find("\"name\"", quote + 1);
+    }
+    return L"";
+}
+
+bool TrustedReleaseAsset(const std::wstring& url, const std::wstring& expectedName)
+{
+    // The release's origin and path are fixed, not derived from arbitrary API URLs.
+    const std::wstring prefix = L"https://github.com/Mesrine67/dock/releases/download/";
+    if (url.compare(0, prefix.size(), prefix) != 0)
+        return false;
+    const size_t slash = url.find(L'/', prefix.size());
+    if (slash == std::wstring::npos)
+        return false;
+    const auto tag = url.substr(prefix.size(), slash - prefix.size());
+    if (tag.size() < 2 || tag[0] != L'v')
+        return false;
+    for (const auto c : tag.substr(1))
+        if (!iswdigit(c) && c != L'.')
+            return false;
+    return url.substr(slash + 1) == expectedName;
 }
 
 // Owns a WinHTTP handle and closes it on scope exit (no manual cleanup paths).
@@ -143,6 +208,49 @@ bool HttpsGet(const wchar_t* host, INTERNET_PORT port, const wchar_t* path,
     }
 }
 
+// GET an explicitly constrained GitHub release asset over HTTPS.
+template<class Sink>
+bool GetAsset(const std::wstring& url, Sink&& sink)
+{
+    URL_COMPONENTSW u{};
+    u.dwStructSize = sizeof(u);
+    wchar_t host[256]{};
+    wchar_t path[2048]{};
+    wchar_t extra[1024]{};
+    u.lpszHostName = host; u.dwHostNameLength = ARRAYSIZE(host);
+    u.lpszUrlPath = path; u.dwUrlPathLength = ARRAYSIZE(path);
+    u.lpszExtraInfo = extra; u.dwExtraInfoLength = ARRAYSIZE(extra);
+    if (!WinHttpCrackUrl(url.c_str(), 0, 0, &u) || u.nScheme != INTERNET_SCHEME_HTTPS ||
+        _wcsicmp(host, L"github.com") != 0 || u.nPort != INTERNET_DEFAULT_HTTPS_PORT)
+        return false;
+    const std::wstring target = std::wstring(path) + extra;
+    return HttpsGet(host, u.nPort, target.c_str(), nullptr, 30000,
+                    std::forward<Sink>(sink));
+}
+
+bool HexDigestEquals(const std::vector<unsigned char>& bytes, const std::string& expected)
+{
+    if (expected.size() != 64)
+        return false;
+    BCRYPT_ALG_HANDLE alg = nullptr;
+    BCRYPT_HASH_HANDLE hash = nullptr;
+    std::array<unsigned char, 32> digest{};
+    bool ok = BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) == 0;
+    if (ok) ok = BCryptCreateHash(alg, &hash, nullptr, 0, nullptr, 0, 0) == 0;
+    if (ok) ok = BCryptHashData(hash, const_cast<PUCHAR>(bytes.data()),
+                               static_cast<ULONG>(bytes.size()), 0) == 0;
+    if (ok) ok = BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) == 0;
+    if (hash) BCryptDestroyHash(hash);
+    if (alg) BCryptCloseAlgorithmProvider(alg, 0);
+    if (!ok) return false;
+    static constexpr char hex[] = "0123456789abcdef";
+    for (size_t i=0;i<digest.size();++i)
+        if (tolower(static_cast<unsigned char>(expected[2*i])) != hex[digest[i] >> 4] ||
+            tolower(static_cast<unsigned char>(expected[2*i+1])) != hex[digest[i] & 15])
+            return false;
+    return true;
+}
+
 } // namespace
 
 namespace dk
@@ -208,6 +316,15 @@ void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated)
             {
                 result->latest      = Widen(tag);
                 result->available   = IsNewerVersion(result->latest, result->current);
+                result->filename = L"dock-" + Widen(tag.substr(tag[0] == 'v' ? 1 : 0)) + L"-setup.exe";
+                result->downloadUrl = ReleaseAsset(body, NarrowAscii(result->filename));
+                result->checksumUrl = ReleaseAsset(body, "SHA256SUMS.txt");
+                if (!TrustedReleaseAsset(result->downloadUrl, result->filename) ||
+                    !TrustedReleaseAsset(result->checksumUrl, L"SHA256SUMS.txt"))
+                {
+                    result->downloadUrl.clear();
+                    result->checksumUrl.clear();
+                }
             }
             else
             {
@@ -221,6 +338,75 @@ void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated)
 
         if (!PostMessageW(notify, msg, 0, reinterpret_cast<LPARAM>(result)))
             delete result; // the window is gone; don't leak
+    }).detach();
+}
+
+void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring installerUrl,
+                         std::wstring checksumUrl, std::wstring filename)
+{
+    std::thread([notify, msg, installerUrl, checksumUrl, filename] {
+        auto* result = new DownloadResult();
+        if (TrustedReleaseAsset(installerUrl, filename) &&
+            TrustedReleaseAsset(checksumUrl, L"SHA256SUMS.txt"))
+        {
+            std::string checksums;
+            const bool gotChecksums = GetAsset(checksumUrl, [&checksums](const char* p, DWORD n) {
+                if (checksums.size() + n > 32768) return false;
+                checksums.append(p,n);
+                return true;
+            });
+            std::string expected;
+            if (gotChecksums)
+            {
+                auto offset = checksums.find(NarrowAscii(filename));
+                if (offset != std::string::npos)
+                {
+                    size_t line = checksums.rfind('\n', offset);
+                    line = (line == std::string::npos) ? 0 : line+1;
+                    if (offset >= line+66)
+                        expected = checksums.substr(line,64);
+                }
+            }
+            std::vector<unsigned char> binary;
+            const bool downloaded = expected.size() == 64 &&
+                GetAsset(installerUrl, [&binary](const char* p, DWORD n) {
+                    if (binary.size() + n > 128 * 1024 * 1024) return false;
+                    binary.insert(binary.end(), p, p+n);
+                    return true;
+                });
+            if (downloaded && HexDigestEquals(binary, expected))
+            {
+                wchar_t temp[MAX_PATH]{};
+                if (GetTempPathW(MAX_PATH, temp))
+                {
+                    wchar_t dir[MAX_PATH]{};
+                    if (GetTempFileNameW(temp, L"dku", 0, dir))
+                    {
+                        DeleteFileW(dir);
+                        if (CreateDirectoryW(dir, nullptr))
+                        {
+                            result->path = std::wstring(dir) + L"\\dock-verified-update.exe";
+                            HANDLE file = CreateFileW(result->path.c_str(), GENERIC_WRITE, 0,
+                                nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+                            if (file != INVALID_HANDLE_VALUE)
+                            {
+                                DWORD written = 0;
+                                result->ok = WriteFile(file, binary.data(),
+                                    static_cast<DWORD>(binary.size()), &written, nullptr) &&
+                                    written == binary.size();
+                                CloseHandle(file);
+                                if (!result->ok) DeleteFileW(result->path.c_str());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!PostMessageW(notify, msg, 0, reinterpret_cast<LPARAM>(result)))
+        {
+            if (result->ok) DeleteFileW(result->path.c_str());
+            delete result;
+        }
     }).detach();
 }
 
