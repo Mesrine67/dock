@@ -267,84 +267,19 @@ void App::OnUpdateChecked(UpdateResult* result)
     {
         const HWND   owner = SettingsHwnd();
         std::wstring text  = L"dock " + res->latest + L" is available.\n\nYou have version " +
-                            res->current + L".\n\nDownload and install it now?";
+                            res->current + L".\n\nOpen the official GitHub Releases page to review and install it?";
         const int choice = MessageBoxW(owner, text.c_str(), L"dock \u2014 Update available",
                                        MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND |
                                            (owner ? 0u : MB_TOPMOST));
         if (choice == IDYES)
-        {
-            if (!res->downloadUrl.empty())
-                BeginUpdateDownload(res->downloadUrl); // self-update
-            else
-                ShellExecuteW(nullptr, L"open", res->url.c_str(), nullptr, nullptr,
-                              SW_SHOWNORMAL); // fallback: open the releases page
-        }
+            ShellExecuteW(nullptr, L"open", res->url.c_str(), nullptr, nullptr,
+                          SW_SHOWNORMAL); // user reviews the release and installer manually
     }
     else if (res->userInitiated && res->failed)
     {
         MessageBoxW(SettingsHwnd(), L"Couldn't check for updates. Please try again later.",
                     L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
     }
-}
-
-void App::BeginUpdateDownload(const std::wstring& url)
-{
-    if (updateDownloadInProgress_)
-        return;
-    updateDownloadInProgress_ = true;
-    if (settingsWnd)
-        settingsWnd->SetUpdateStatus(L"Downloading update\u2026");
-    dk::DownloadUpdateAsync(ctrl, dk::WM_APP_UPDATE_DOWNLOADED, url);
-}
-
-void App::OnUpdateDownloaded(DownloadResult* result)
-{
-    std::unique_ptr<DownloadResult> res(result);
-    updateDownloadInProgress_ = false;
-    if (!res || !res->ok)
-    {
-        if (settingsWnd)
-            settingsWnd->SetUpdateStatus(L"Update download failed.");
-        MessageBoxW(SettingsHwnd(), L"The update could not be downloaded. Please try again later.",
-                    L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
-        return;
-    }
-
-    if (settingsWnd)
-        settingsWnd->SetUpdateStatus(L"Installing update\u2026");
-
-    // Run the silent, self-elevating installer through a tiny detached cmd helper
-    // that relaunches the freshly installed build once the install finishes. The
-    // helper survives the installer's stop step (it isn't named dock.exe) and
-    // "start" relaunches the app as the normal, non-elevated user. The installer's
-    // own [Run] step also relaunches it (covering non-default install folders); the
-    // "--updated" flag + the single-instance guard make any double launch harmless
-    // (no duplicate window, no stray settings pop-up).
-    std::wstring installedExe;
-    PWSTR        pf = nullptr;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_ProgramFiles, 0, nullptr, &pf)))
-    {
-        installedExe = std::wstring(pf) + L"\\dock\\dock.exe";
-        CoTaskMemFree(pf);
-    }
-
-    std::wstring params =
-        L"/c \"start /wait \"\" \"" + res->path + L"\" /SILENT /SUPPRESSMSGBOXES /NORESTART";
-    if (!installedExe.empty())
-        params += L" & if exist \"" + installedExe + L"\" start \"\" \"" + installedExe +
-                  L"\" --updated";
-    params += L"\"";
-
-    SHELLEXECUTEINFOW sei{ sizeof(sei) };
-    sei.fMask        = SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
-    sei.lpVerb       = L"open";
-    sei.lpFile       = L"cmd.exe";
-    sei.lpParameters = params.c_str();
-    sei.nShow        = SW_HIDE;
-    if (ShellExecuteExW(&sei))
-        PostQuitMessage(0); // exit so the installer can replace dock.exe
-    else if (settingsWnd)
-        settingsWnd->SetUpdateStatus(L"Update failed to start.");
 }
 
 void App::StartWatching()
