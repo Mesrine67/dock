@@ -267,19 +267,76 @@ void App::OnUpdateChecked(UpdateResult* result)
     {
         const HWND   owner = SettingsHwnd();
         std::wstring text  = L"dock " + res->latest + L" is available.\n\nYou have version " +
-                            res->current + L".\n\nOpen the official GitHub Releases page to review and install it?";
+                            res->current + L".\n\nDownload, verify and install this update now?";
         const int choice = MessageBoxW(owner, text.c_str(), L"dock \u2014 Update available",
                                        MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND |
                                            (owner ? 0u : MB_TOPMOST));
         if (choice == IDYES)
-            ShellExecuteW(nullptr, L"open", res->url.c_str(), nullptr, nullptr,
-                          SW_SHOWNORMAL); // user reviews the release and installer manually
+        {
+            if (!res->downloadUrl.empty() && !res->checksumUrl.empty())
+                BeginUpdateDownload(res->downloadUrl, res->checksumUrl, res->filename);
+            else
+                ShellExecuteW(nullptr, L"open", res->url.c_str(), nullptr, nullptr,
+                              SW_SHOWNORMAL);
+        }
     }
     else if (res->userInitiated && res->failed)
     {
         MessageBoxW(SettingsHwnd(), L"Couldn't check for updates. Please try again later.",
                     L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
     }
+}
+
+void App::BeginUpdateDownload(const std::wstring& installerUrl,
+                              const std::wstring& checksumUrl,
+                              const std::wstring& filename)
+{
+    if (updateDownloadInProgress_)
+        return;
+    updateDownloadInProgress_ = true;
+    if (settingsWnd)
+        settingsWnd->SetUpdateStatus(L"Downloading and verifying update...");
+    dk::DownloadUpdateAsync(ctrl, dk::WM_APP_UPDATE_DOWNLOADED,
+                            installerUrl, checksumUrl, filename);
+}
+
+void App::OnUpdateDownloaded(DownloadResult* result)
+{
+    std::unique_ptr<DownloadResult> res(result);
+    updateDownloadInProgress_ = false;
+    if (!res || !res->ok)
+    {
+        if (settingsWnd)
+            settingsWnd->SetUpdateStatus(L"Update download or SHA-256 verification failed.");
+        MessageBoxW(SettingsHwnd(),
+                    L"The update could not be verified or downloaded. No installer was started.",
+                    L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+        return;
+    }
+
+    // Use ShellExecute directly (no cmd.exe or interpolated shell commands).
+    // Inno Setup handles elevation and replaces the running application.
+    SHELLEXECUTEINFOW launch{};
+    launch.cbSize = sizeof(launch);
+    launch.fMask = SEE_MASK_NOCLOSEPROCESS;
+    launch.lpVerb = L"runas";
+    launch.lpFile = res->path.c_str();
+    launch.lpParameters = L"/SILENT /NORESTART";
+    launch.nShow = SW_SHOWNORMAL;
+    if (!ShellExecuteExW(&launch))
+    {
+        DeleteFileW(res->path.c_str());
+        MessageBoxW(SettingsHwnd(), L"The verified installer could not be launched.",
+                    L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+        return;
+    }
+
+    if (launch.hProcess)
+        CloseHandle(launch.hProcess);
+    if (settingsWnd)
+        settingsWnd->SetUpdateStatus(L"Verified installer launched.");
+    // Let the installer stop the running dock and relaunch the updated executable.
+    PostQuitMessage(0);
 }
 
 void App::StartWatching()
