@@ -20,7 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive version from tag
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -notmatch '^v[0-9]+\\.[0-9]+\\.[0-9]+
         id: ver
         shell: pwsh
         run: |
@@ -53,22 +56,26 @@ jobs:
           & $iscc "/DMyAppVersion=${{ steps.ver.outputs.version }}" "packaging\dock.iss"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
-      - name: Publish GitHub release
+      - name: Prepare checksum for installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $setup = "packaging/Output/dock-$version-setup.exe"
+          if (-not (Test-Path -LiteralPath $setup)) { throw "Missing installer: $setup" }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
+          "$hash  dock-$version-setup.exe" | Set-Content -Encoding ascii "packaging/Output/SHA256SUMS.txt"
+
+      - name: Create draft GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = "${{ steps.ver.outputs.version }}"
-          $tag     = "${{ github.ref_name }}"
-          $setup   = "packaging\Output\dock-$version-setup.exe"
-          if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
-
-          # Idempotent: create the release, or just (re)upload the asset if it already exists.
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $tag already exists - uploading asset (clobber)."
-            gh release upload $tag $setup --clobber
-          } else {
-            Write-Host "Creating release $tag."
-            gh release create $tag $setup --title "dock $version" --generate-notes
+          $tag = "${{ github.ref_name }}"
+          $setup = "packaging/Output/dock-$version-setup.exe"
+          $checksums = "packaging/Output/SHA256SUMS.txt"
+          if (-not (Test-Path -LiteralPath $setup) -or -not (Test-Path -LiteralPath $checksums)) {
+            throw "Missing release assets."
           }
+          gh release create $tag $setup $checksums --title "dock $version" --generate-notes --draft
+          if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed." }
