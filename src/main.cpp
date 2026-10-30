@@ -65,6 +65,13 @@ LRESULT CALLBACK CtrlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             delete reinterpret_cast<UpdateResult*>(lParam);
         return 0;
 
+    case dk::WM_APP_UPDATE_DOWNLOADED:
+        if (app)
+            app->OnUpdateDownloaded(reinterpret_cast<DownloadResult*>(lParam));
+        else
+            delete reinterpret_cast<DownloadResult*>(lParam);
+        return 0;
+
     case dk::WM_APP_FOLDER_CHANGED:
         // Debounce: wait for the change burst to settle, then refresh once.
         SetTimer(hwnd, kFolderRefreshTimer, 200, nullptr);
