@@ -266,9 +266,9 @@ void App::OnUpdateChecked(UpdateResult* result)
     if (res->available)
     {
         const HWND   owner = SettingsHwnd();
-        std::wstring text  = L"doludock " + res->latest + L" is available.\n\nYou have version " +
+        std::wstring text  = L"dock " + res->latest + L" is available.\n\nYou have version " +
                             res->current + L".\n\nDownload and install it now?";
-        const int choice = MessageBoxW(owner, text.c_str(), L"doludock \u2014 Update available",
+        const int choice = MessageBoxW(owner, text.c_str(), L"dock \u2014 Update available",
                                        MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND |
                                            (owner ? 0u : MB_TOPMOST));
         if (choice == IDYES)
@@ -283,7 +283,7 @@ void App::OnUpdateChecked(UpdateResult* result)
     else if (res->userInitiated && res->failed)
     {
         MessageBoxW(SettingsHwnd(), L"Couldn't check for updates. Please try again later.",
-                    L"doludock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+                    L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
     }
 }
 
@@ -306,7 +306,7 @@ void App::OnUpdateDownloaded(DownloadResult* result)
         if (settingsWnd)
             settingsWnd->SetUpdateStatus(L"Update download failed.");
         MessageBoxW(SettingsHwnd(), L"The update could not be downloaded. Please try again later.",
-                    L"doludock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+                    L"dock", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
         return;
     }
 
@@ -315,7 +315,7 @@ void App::OnUpdateDownloaded(DownloadResult* result)
 
     // Run the silent, self-elevating installer through a tiny detached cmd helper
     // that relaunches the freshly installed build once the install finishes. The
-    // helper survives the installer's stop step (it isn't named doludock.exe) and
+    // helper survives the installer's stop step (it isn't named dock.exe) and
     // "start" relaunches the app as the normal, non-elevated user. The installer's
     // own [Run] step also relaunches it (covering non-default install folders); the
     // "--updated" flag + the single-instance guard make any double launch harmless
@@ -324,7 +324,7 @@ void App::OnUpdateDownloaded(DownloadResult* result)
     PWSTR        pf = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_ProgramFiles, 0, nullptr, &pf)))
     {
-        installedExe = std::wstring(pf) + L"\\doludock\\doludock.exe";
+        installedExe = std::wstring(pf) + L"\\dock\\dock.exe";
         CoTaskMemFree(pf);
     }
 
@@ -342,7 +342,7 @@ void App::OnUpdateDownloaded(DownloadResult* result)
     sei.lpParameters = params.c_str();
     sei.nShow        = SW_HIDE;
     if (ShellExecuteExW(&sei))
-        PostQuitMessage(0); // exit so the installer can replace doludock.exe
+        PostQuitMessage(0); // exit so the installer can replace dock.exe
     else if (settingsWnd)
         settingsWnd->SetUpdateStatus(L"Update failed to start.");
 }
@@ -533,7 +533,7 @@ void App::AddTray()
                                                           LR_DEFAULTCOLOR));
     if (!nid_.hIcon)
         nid_.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    wcscpy_s(nid_.szTip, L"doludock");
+    wcscpy_s(nid_.szTip, L"dock");
     Shell_NotifyIconW(NIM_ADD, &nid_);
     UpdateTrayTip();
 }
@@ -549,7 +549,7 @@ void App::UpdateTrayTip()
         return;
     const std::wstring shortcut = HotkeyToString(settings.hotkey.modifiers, settings.hotkey.vk);
     const wchar_t*     verb     = settings.toggleMode ? L"press" : L"hold";
-    std::wstring       tip      = L"doludock \u2014 " + std::wstring(verb) + L" " + shortcut;
+    std::wstring       tip      = L"dock \u2014 " + std::wstring(verb) + L" " + shortcut;
     nid_.uFlags = NIF_TIP;
     wcsncpy_s(nid_.szTip, tip.c_str(), _TRUNCATE);
     Shell_NotifyIconW(NIM_MODIFY, &nid_);

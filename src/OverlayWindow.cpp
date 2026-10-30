@@ -96,7 +96,7 @@ bool OverlayWindow::Initialize(HINSTANCE hInst, FolderModel* model, IWICImagingF
     wc.lpfnWndProc   = &OverlayWindow::WndProcStatic;
     wc.hInstance     = hInst;
     wc.hCursor       = LoadCursorW(nullptr, IDC_ARROW);
-    wc.lpszClassName = L"DoludockOverlay";
+    wc.lpszClassName = L"DockOverlay";
     const ATOM atom = RegisterClassExW(&wc);
 
     // NOTE: deliberately NO WS_EX_NOACTIVATE — the overlay must be able to take
@@ -111,13 +111,13 @@ bool OverlayWindow::Initialize(HINSTANCE hInst, FolderModel* model, IWICImagingF
                 reinterpret_cast<CreateWindowInBandFn>(GetProcAddress(u32, "CreateWindowInBand")))
         {
             if (atom)
-                hwnd_ = createInBand(exStyle, atom, L"doludock", WS_POPUP, 0, 0, 16, 16,
+                hwnd_ = createInBand(exStyle, atom, L"dock", WS_POPUP, 0, 0, 16, 16,
                                      nullptr, nullptr, hInst, this, ZBID_SYSTEM_TOOLS);
         }
     }
 
     if (!hwnd_)
-        hwnd_ = CreateWindowExW(exStyle, L"DoludockOverlay", L"doludock", WS_POPUP,
+        hwnd_ = CreateWindowExW(exStyle, L"DockOverlay", L"dock", WS_POPUP,
                                 0, 0, 16, 16, nullptr, nullptr, hInst, this);
 
     return hwnd_ != nullptr;

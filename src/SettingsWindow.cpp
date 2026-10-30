@@ -22,7 +22,7 @@
 
 namespace
 {
-const wchar_t kClassName[] = L"DoludockSettings";
+const wchar_t kClassName[] = L"DockSettings";
 
 // A flat, uniform dark palette: every control shares the window background so
 // there are no visible panels, and because the shared brush is opaque, dynamic
@@ -206,7 +206,7 @@ void SettingsWindow::EnsureCreated()
     const int x = mi.rcWork.left + (mi.rcWork.right - mi.rcWork.left - w) / 2;
     const int y = mi.rcWork.top + (mi.rcWork.bottom - mi.rcWork.top - h) / 2;
 
-    hwnd_ = CreateWindowExW(0, kClassName, L"doludock \u2014 Settings",
+    hwnd_ = CreateWindowExW(0, kClassName, L"dock \u2014 Settings",
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_VSCROLL, x, y, w, h,
                             nullptr, nullptr, app_.hInst, this);
     if (!hwnd_)
@@ -253,7 +253,7 @@ void SettingsWindow::CreateControls()
     const int btnW  = 480 - M - btnX;
     int       yc    = 18;
 
-    make(L"STATIC", L"doludock settings", SS_LEFT, M, yc, fullW, 32, IDC_TITLE, titleFont_,
+    make(L"STATIC", L"dock settings", SS_LEFT, M, yc, fullW, 32, IDC_TITLE, titleFont_,
          nullptr);
     yc += 52;
 
@@ -374,7 +374,7 @@ void SettingsWindow::CreateControls()
 
     make(L"STATIC", L"Startup", SS_LEFT, M, yc, 200, 20, IDC_SEC_STARTUP, sectionFont_, nullptr);
     yc += 28;
-    hAutostart_ = make(L"BUTTON", L"Start doludock when I sign in", BS_AUTOCHECKBOX | WS_TABSTOP, M,
+    hAutostart_ = make(L"BUTTON", L"Start dock when I sign in", BS_AUTOCHECKBOX | WS_TABSTOP, M,
                        yc, fullW, 24, IDC_AUTOSTART, font_, L"DarkMode_Explorer");
     yc += 44;
 

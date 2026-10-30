@@ -1,4 +1,4 @@
-# doludock
+# dock
 
 > Hold **WIN + Space** to peek at a folder's contents over any window.
 
@@ -7,7 +7,7 @@
 ![Language](https://img.shields.io/badge/C%2B%2B-17-00599C)
 ![Build](https://img.shields.io/badge/build-CMake-064F8C)
 
-`doludock` sits in the system tray. Hold **`WIN + Space`** to fade in a translucent
+`dock` sits in the system tray. Hold **`WIN + Space`** to fade in a translucent
 panel showing a folder's contents over whatever you're doing; release to dismiss.
 Click an item to open it.
 
@@ -24,10 +24,10 @@ Click an item to open it.
 
 ## Download
 
-Grab the latest **`doludock-x.y.z-setup.exe`** from the
-[**Releases**](https://github.com/DoluTattoo/doludock/releases) page — a one-click
+Grab the latest **`dock-x.y.z-setup.exe`** from the
+[**Releases**](https://github.com/Mesrine67/dock/releases) page — a one-click
 installer (Start-menu shortcut, optional desktop icon and start-with-Windows, clean
-uninstall). Once installed, doludock checks for updates on launch and can install
+uninstall). Once installed, dock checks for updates on launch and can install
 them for you (toggle it, or check on demand, in **Settings → Updates**).
 
 Windows 10 / 11, 64-bit. The app is unsigned, so SmartScreen may warn on first run
@@ -42,11 +42,11 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-The executable is produced at `build/doludock.exe`.
+The executable is produced at `build/dock.exe`.
 
 ## Usage
 
-1. Run `doludock.exe` — it appears in the system tray.
+1. Run `dock.exe` — it appears in the system tray.
 2. **Hold `WIN + Space`** (the default shortcut) to reveal the folder; release to hide it.
 3. **Left-click** an item to open it; **right-click** the panel to dismiss it.
 4. **Double-click the tray icon** to open settings, or **right-click** it for *Settings* / *Close*.
@@ -54,7 +54,7 @@ The executable is produced at `build/doludock.exe`.
 The settings window lets you change the shortcut, switch to toggle mode, pick the folder,
 set the grid (columns / rows) and where the panel opens (horizontal / vertical offset),
 toggle the folder name / item count in the header, choose the backdrop, opacity and rounded
-corners, decide whether the cursor recenters on the panel, and start doludock automatically
+corners, decide whether the cursor recenters on the panel, and start dock automatically
 when you sign in. It is fully keyboard-navigable and scrolls on small screens. Everything is
 remembered across launches (the folder defaults to your Desktop).
 

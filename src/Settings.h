@@ -40,7 +40,7 @@ struct Hotkey
     unsigned vk        = VK_SPACE;
 };
 
-// All user-configurable options, persisted under HKCU\Software\doludock.
+// All user-configurable options, persisted under HKCU\Software\dock.
 struct Settings
 {
     std::wstring  folder;                               // empty => Desktop fallback

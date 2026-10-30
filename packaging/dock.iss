@@ -1,28 +1,28 @@
-; doludock - Inno Setup installer script
+; dock - Inno Setup installer script
 ;
 ; Produces a single, clean setup.exe (Start-menu shortcut, optional desktop icon
 ; and start-with-Windows, proper uninstaller). Requires Inno Setup 6.3+ (it uses
 ; the "x64compatible" architecture identifier).
 ;
 ; The CI passes the version and reads the freshly built exe from ..\dist:
-;   ISCC /DMyAppVersion=1.2.3 packaging\doludock.iss
+;   ISCC /DMyAppVersion=1.2.3 packaging\dock.iss
 ;
-; To build it locally, first copy build\<config>\doludock.exe into a "dist" folder
+; To build it locally, first copy build\<config>\dock.exe into a "dist" folder
 ; at the repo root (or pass /DStagingDir=...), then run ISCC on this file.
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.0.0"
 #endif
 
-; Folder (relative to this .iss) that holds the freshly built doludock.exe.
+; Folder (relative to this .iss) that holds the freshly built dock.exe.
 #ifndef StagingDir
   #define StagingDir "..\dist"
 #endif
 
-#define MyAppName "doludock"
-#define MyAppPublisher "Dolu"
-#define MyAppURL "https://github.com/DoluTattoo/doludock"
-#define MyAppExeName "doludock.exe"
+#define MyAppName "dock"
+#define MyAppPublisher "PaPi"
+#define MyAppURL "https://github.com/Mesrine67/dock"
+#define MyAppExeName "dock.exe"
 
 [Setup]
 ; A stable AppId keeps upgrades and uninstall tidy across versions. Do not change it.
@@ -39,7 +39,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 OutputDir=Output
-OutputBaseFilename=doludock-{#MyAppVersion}-setup
+OutputBaseFilename=dock-{#MyAppVersion}-setup
 SetupIconFile=..\src\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
@@ -70,9 +70,9 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; Optional "run at sign-in" - writes the very same HKCU Run value doludock itself uses.
+; Optional "run at sign-in" - writes the very same HKCU Run value dock itself uses.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; \
-  ValueName: "doludock"; ValueData: """{app}\{#MyAppExeName}"""; \
+  ValueName: "dock"; ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
@@ -86,14 +86,14 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--updated"; Flags: nowait runasc
 [UninstallRun]
 ; Stop the tray app (if running) before removing its files.
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#MyAppExeName} /F"; \
-  Flags: runhidden; RunOnceId: "StopDoludock"
+  Flags: runhidden; RunOnceId: "StopDock"
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
 begin
-  // Make sure no running instance locks doludock.exe during a (re)install.
+  // Make sure no running instance locks dock.exe during a (re)install.
   if CurStep = ssInstall then
     Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#MyAppExeName} /F', '',
          SW_HIDE, ewWaitUntilTerminated, ResultCode);
@@ -105,5 +105,5 @@ begin
   // app's own "start with Windows" setting), so no dead Run key is left behind.
   if CurUninstallStep = usUninstall then
     RegDeleteValue(HKEY_CURRENT_USER,
-      'Software\Microsoft\Windows\CurrentVersion\Run', 'doludock');
+      'Software\Microsoft\Windows\CurrentVersion\Run', 'dock');
 end;

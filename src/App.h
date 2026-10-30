@@ -80,7 +80,7 @@ struct App
     void OnUpdateChecked(UpdateResult* result);
 
     // Self-update: downloads the installer in the background, then launches it
-    // (silent, elevated) and quits so it can replace doludock and relaunch.
+    // (silent, elevated) and quits so it can replace dock and relaunch.
     void BeginUpdateDownload(const std::wstring& url);
     void OnUpdateDownloaded(DownloadResult* result);
 

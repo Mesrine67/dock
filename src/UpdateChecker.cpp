@@ -12,16 +12,16 @@
 // Injected by CMake from the project version / release tag; falls back to a
 // sentinel so the app still builds (and reports "an update is available") if it
 // is ever compiled without the definition.
-#ifndef DOLUDOCK_VERSION
-#define DOLUDOCK_VERSION "0.0.0"
+#ifndef DOCK_VERSION
+#define DOCK_VERSION "0.0.0"
 #endif
 
 namespace
 {
 constexpr wchar_t kApiHost[] = L"api.github.com";
-constexpr wchar_t kApiPath[] = L"/repos/DoluTattoo/doludock/releases/latest";
+constexpr wchar_t kApiPath[] = L"/repos/Mesrine67/dock/releases/latest";
 // Stable page that always redirects to the newest release.
-constexpr wchar_t kReleasePage[] = L"https://github.com/DoluTattoo/doludock/releases/latest";
+constexpr wchar_t kReleasePage[] = L"https://github.com/Mesrine67/dock/releases/latest";
 
 std::wstring Widen(const std::string& s)
 {
@@ -124,7 +124,7 @@ template <class Sink>
 bool HttpsGet(const wchar_t* host, INTERNET_PORT port, const wchar_t* path,
               const wchar_t* extraHeaders, DWORD receiveTimeoutMs, Sink&& sink)
 {
-    WinHttpHandle session(WinHttpOpen(L"doludock-update-check",
+    WinHttpHandle session(WinHttpOpen(L"dock-update-check",
                                       WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
                                       WINHTTP_NO_PROXY_BYPASS, 0));
     if (!session)
@@ -212,7 +212,7 @@ namespace dk
 {
 std::wstring CurrentVersionW()
 {
-    return Widen(DOLUDOCK_VERSION);
+    return Widen(DOCK_VERSION);
 }
 
 bool IsNewerVersion(const std::wstring& candidate, const std::wstring& baseline)
@@ -296,7 +296,7 @@ void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring url)
         wchar_t tmp[MAX_PATH] = {};
         if (GetTempPathW(MAX_PATH, tmp) != 0)
         {
-            const std::wstring dest = std::wstring(tmp) + L"doludock-update-setup.exe";
+            const std::wstring dest = std::wstring(tmp) + L"dock-update-setup.exe";
             if (!url.empty() && DownloadToFile(url, dest))
             {
                 res->ok   = true;

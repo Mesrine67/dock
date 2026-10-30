@@ -1,4 +1,4 @@
-# Style for the doludock codebase: Allman braces, 4-space indent, aligned
+# Style for the dock codebase: Allman braces, 4-space indent, aligned
 # declarations, 100-column lines. Run `clang-format -i src/*.cpp src/*.h`.
 Language:        Cpp
 BasedOnStyle:    Microsoft

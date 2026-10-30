@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(doludock
+project(dock
     VERSION 0.1.0
     DESCRIPTION "Hold WIN+Space to peek at a folder's contents over any window"
-    HOMEPAGE_URL "https://github.com/DoluTattoo/doludock"
+    HOMEPAGE_URL "https://github.com/Mesrine67/dock"
     LANGUAGES CXX RC)
 
 if(NOT WIN32)
-    message(FATAL_ERROR "doludock targets Windows only (Win32 + Direct2D).")
+    message(FATAL_ERROR "dock targets Windows only (Win32 + Direct2D).")
 endif()
 
 # Default to Release for single-config generators (NMake, Ninja, Makefiles).
@@ -17,17 +17,17 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         Debug Release RelWithDebInfo MinSizeRel)
 endif()
 
-option(DOLUDOCK_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(DOCK_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 # Version reported by the in-app update check. CI overrides this with the pushed
-# tag (e.g. -D DOLUDOCK_VERSION=0.2.0) so an installed build knows its own version.
-if(NOT DEFINED DOLUDOCK_VERSION)
-    set(DOLUDOCK_VERSION "${PROJECT_VERSION}")
+# tag (e.g. -D DOCK_VERSION=0.2.0) so an installed build knows its own version.
+if(NOT DEFINED DOCK_VERSION)
+    set(DOCK_VERSION "${PROJECT_VERSION}")
 endif()
 
-add_executable(doludock WIN32)
+add_executable(dock WIN32)
 
-target_sources(doludock PRIVATE
+target_sources(dock PRIVATE
     src/main.cpp
     src/App.cpp
     src/FolderModel.cpp
@@ -40,26 +40,26 @@ target_sources(doludock PRIVATE
     src/app.rc
     src/app.manifest)
 
-target_include_directories(doludock PRIVATE src)
+target_include_directories(dock PRIVATE src)
 
-target_compile_features(doludock PRIVATE cxx_std_17)
+target_compile_features(dock PRIVATE cxx_std_17)
 
-target_compile_definitions(doludock PRIVATE
+target_compile_definitions(dock PRIVATE
     UNICODE
     _UNICODE
     WIN32_LEAN_AND_MEAN
     NOMINMAX
-    DOLUDOCK_VERSION="${DOLUDOCK_VERSION}")
+    DOCK_VERSION="${DOCK_VERSION}")
 
 if(MSVC)
-    target_compile_options(doludock PRIVATE /W4 /permissive- /EHsc /utf-8)
-    if(DOLUDOCK_WARNINGS_AS_ERRORS)
-        target_compile_options(doludock PRIVATE /WX)
+    target_compile_options(dock PRIVATE /W4 /permissive- /EHsc /utf-8)
+    if(DOCK_WARNINGS_AS_ERRORS)
+        target_compile_options(dock PRIVATE /WX)
     endif()
 endif()
 
 # Windowing, Direct2D / DirectWrite / WIC rendering, and Shell integration.
-target_link_libraries(doludock PRIVATE
+target_link_libraries(dock PRIVATE
     d2d1
     dwrite
     windowscodecs

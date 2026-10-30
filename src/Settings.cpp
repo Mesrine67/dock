@@ -7,7 +7,7 @@
 
 namespace
 {
-constexpr wchar_t kKey[] = L"Software\\doludock";
+constexpr wchar_t kKey[] = L"Software\\dock";
 
 DWORD ReadDword(const wchar_t* name, DWORD fallback)
 {
@@ -182,7 +182,7 @@ bool SettingsExist()
 namespace
 {
 constexpr wchar_t kRunKey[]   = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-constexpr wchar_t kRunValue[] = L"doludock";
+constexpr wchar_t kRunValue[] = L"dock";
 } // namespace
 
 bool IsAutostartEnabled()

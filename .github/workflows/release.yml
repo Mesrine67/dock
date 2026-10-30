@@ -1,6 +1,6 @@
 name: Release
 
-# Build doludock and publish a GitHub Release whenever a version tag is pushed.
+# Build dock and publish a GitHub Release whenever a version tag is pushed.
 #   git tag v0.2.0
 #   git push origin v0.2.0
 on:
@@ -26,12 +26,12 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}" -replace '^v', ''
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "doludock version: $version"
+          Write-Host "dock version: $version"
 
       # No -G: let CMake pick the newest installed Visual Studio generator, so this
       # keeps working when windows-latest moves from VS 2022 to VS 2026.
       - name: Configure (CMake / MSVC x64)
-        run: cmake -S . -B build -A x64 -D DOLUDOCK_VERSION=${{ steps.ver.outputs.version }}
+        run: cmake -S . -B build -A x64 -D DOCK_VERSION=${{ steps.ver.outputs.version }}
 
       - name: Build (Release)
         run: cmake --build build --config Release
@@ -40,7 +40,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item build/Release/doludock.exe dist/ -Force
+          Copy-Item build/Release/dock.exe dist/ -Force
 
       - name: Build installer (Inno Setup)
         shell: pwsh
@@ -50,7 +50,7 @@ jobs:
             $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
             if ($cmd) { $iscc = $cmd.Source } else { throw "Inno Setup (ISCC.exe) not found on the runner." }
           }
-          & $iscc "/DMyAppVersion=${{ steps.ver.outputs.version }}" "packaging\doludock.iss"
+          & $iscc "/DMyAppVersion=${{ steps.ver.outputs.version }}" "packaging\dock.iss"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
       - name: Publish GitHub release
@@ -60,7 +60,7 @@ jobs:
         run: |
           $version = "${{ steps.ver.outputs.version }}"
           $tag     = "${{ github.ref_name }}"
-          $setup   = "packaging\Output\doludock-$version-setup.exe"
+          $setup   = "packaging\Output\dock-$version-setup.exe"
           if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
 
           # Idempotent: create the release, or just (re)upload the asset if it already exists.
@@ -70,5 +70,5 @@ jobs:
             gh release upload $tag $setup --clobber
           } else {
             Write-Host "Creating release $tag."
-            gh release create $tag $setup --title "doludock $version" --generate-notes
+            gh release create $tag $setup --title "dock $version" --generate-notes
           }
