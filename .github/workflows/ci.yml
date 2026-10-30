@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-build:
+    name: CMake / MSVC (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure Windows x64
+        run: cmake -S . -B build -A x64 -D DOCK_WARNINGS_AS_ERRORS=ON
+
+      - name: Build Release
+        run: cmake --build build --config Release --parallel 2
+
+      - name: Verify the expected executable
+        shell: pwsh
+        run: |
+          $binary = "build/Release/dock.exe"
+          if (-not (Test-Path -LiteralPath $binary)) {
+            throw "Expected dock executable was not built: $binary"
+          }
+          $item = Get-Item -LiteralPath $binary
+          if ($item.Length -le 0) {
+            throw "Executable is empty: $binary"
+          }
+          Write-Host "Windows x64 executable validated: $($item.Length) bytes"
