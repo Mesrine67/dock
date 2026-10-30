@@ -17,7 +17,6 @@ class FolderWatcher;
 struct IWICImagingFactory;
 struct IconBatch;
 struct UpdateResult;
-struct DownloadResult;
 
 namespace dk
 {
@@ -30,7 +29,6 @@ constexpr UINT WM_APP_SHOWSETTINGS = WM_APP + 5;
 constexpr UINT WM_APP_ICONS_READY  = WM_APP + 6;
 constexpr UINT WM_APP_FOLDER_CHANGED = WM_APP + 7;
 constexpr UINT WM_APP_UPDATE_READY = WM_APP + 8;
-constexpr UINT WM_APP_UPDATE_DOWNLOADED = WM_APP + 9;
 } // namespace dk
 
 // Shared application context: owns the live settings and wires every settings
@@ -79,11 +77,6 @@ struct App
     void CheckForUpdates(bool userInitiated);
     void OnUpdateChecked(UpdateResult* result);
 
-    // Self-update: downloads the installer in the background, then launches it
-    // (silent, elevated) and quits so it can replace dock and relaunch.
-    void BeginUpdateDownload(const std::wstring& url);
-    void OnUpdateDownloaded(DownloadResult* result);
-
     // Re-targets the folder watcher at the current folder.
     void StartWatching();
     // Re-enumerates the folder and reloads icons (folder contents changed).
@@ -110,5 +103,4 @@ private:
     NOTIFYICONDATAW nid_{};
     bool            previewActive_ = false;
     bool            updateCheckInProgress_ = false;
-    bool            updateDownloadInProgress_ = false;
 };
