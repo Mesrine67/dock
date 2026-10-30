@@ -14,7 +14,17 @@ struct UpdateResult
     bool         userInitiated = false; // the user pressed "Check now"
     std::wstring latest;                // latest release version, e.g. "0.2.0"
     std::wstring current;               // this build's version
-    std::wstring url;                   // release page (download-page fallback)
+    std::wstring url;                   // official GitHub Releases page
+    std::wstring downloadUrl;           // validated installer download URL
+    std::wstring checksumUrl;           // matching SHA256SUMS.txt download URL
+    std::wstring filename;              // expected dock-<version>-setup.exe
+};
+
+// A verified installer's temporary path; the UI thread takes ownership of this result.
+struct DownloadResult
+{
+    bool ok = false;
+    std::wstring path;
 };
 
 namespace dk
@@ -28,5 +38,9 @@ bool IsNewerVersion(const std::wstring& candidate, const std::wstring& baseline)
 // Runs the GitHub "latest release" check on a detached thread and posts a
 // heap-allocated UpdateResult* to `notify` as `msg`'s lParam when finished.
 void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated);
+
+// Download and hash-verify a release installer after the user opts in.
+void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring installerUrl,
+                         std::wstring checksumUrl, std::wstring filename);
 
 } // namespace dk
