@@ -27,8 +27,10 @@ Click an item to open it.
 Grab the latest **`dock-x.y.z-setup.exe`** from the
 [**Releases**](https://github.com/Mesrine67/dock/releases) page — a one-click
 installer (Start-menu shortcut, optional desktop icon and start-with-Windows, clean
-uninstall). Once installed, dock checks for updates on launch and can install
-them for you (toggle it, or check on demand, in **Settings → Updates**).
+uninstall). Once installed, dock can check for updates at launch or on demand
+(**Settings → Updates**). When a newer version is available, you can open its
+GitHub Releases page to review and install it manually. The app does not
+download or execute update installers automatically.
 
 Windows 10 / 11, 64-bit. The app is unsigned, so SmartScreen may warn on first run
 (*More info → Run anyway*).

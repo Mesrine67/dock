@@ -15,15 +15,6 @@ struct UpdateResult
     std::wstring latest;                // latest release version, e.g. "0.2.0"
     std::wstring current;               // this build's version
     std::wstring url;                   // release page (download-page fallback)
-    std::wstring downloadUrl;           // installer asset (.exe) direct URL, if any
-};
-
-// Result of a background installer download, posted as the lParam of
-// dk::WM_APP_UPDATE_DOWNLOADED (the receiver takes ownership and deletes).
-struct DownloadResult
-{
-    bool         ok = false;
-    std::wstring path; // local installer path when ok
 };
 
 namespace dk
@@ -38,7 +29,4 @@ bool IsNewerVersion(const std::wstring& candidate, const std::wstring& baseline)
 // heap-allocated UpdateResult* to `notify` as `msg`'s lParam when finished.
 void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated);
 
-// Downloads the installer at `url` to a temp file on a detached thread and posts
-// a heap-allocated DownloadResult* to `notify` as `msg`'s lParam when finished.
-void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring url);
 } // namespace dk

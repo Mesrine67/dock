@@ -6,7 +6,6 @@
 #include <winhttp.h>
 
 #include <algorithm>
-#include <cstring>
 #include <thread>
 
 // Injected by CMake from the project version / release tag; falls back to a
@@ -68,34 +67,6 @@ std::string ExtractJsonString(const std::string& json, const char* key)
     if (open == std::string::npos)
         return std::string();
     return ReadJsonStringAt(json, open);
-}
-
-// Returns the release's installer asset URL: the "browser_download_url" whose
-// value ends in "setup.exe" (case-insensitive). Empty if none is present.
-std::string ExtractSetupAssetUrl(const std::string& json)
-{
-    const std::string key = "\"browser_download_url\"";
-    auto endsWith = [](const std::string& s, const char* suffix) {
-        const size_t n = std::strlen(suffix);
-        if (s.size() < n)
-            return false;
-        return _stricmp(s.c_str() + (s.size() - n), suffix) == 0;
-    };
-
-    size_t pos = 0;
-    while ((pos = json.find(key, pos)) != std::string::npos)
-    {
-        const size_t colon = json.find(':', pos + key.size());
-        const size_t open  = (colon == std::string::npos) ? std::string::npos
-                                                           : json.find('"', colon + 1);
-        if (open == std::string::npos)
-            break;
-        const std::string value = ReadJsonStringAt(json, open);
-        if (endsWith(value, "setup.exe"))
-            return value;
-        pos = open + 1;
-    }
-    return std::string();
 }
 
 // Owns a WinHTTP handle and closes it on scope exit (no manual cleanup paths).
@@ -172,40 +143,6 @@ bool HttpsGet(const wchar_t* host, INTERNET_PORT port, const wchar_t* path,
     }
 }
 
-// Downloads an arbitrary HTTPS URL to `dest`, removing any partial file on error.
-bool DownloadToFile(const std::wstring& url, const std::wstring& dest)
-{
-    URL_COMPONENTS uc{};
-    uc.dwStructSize      = sizeof(uc);
-    wchar_t host[256]    = {};
-    wchar_t path[3072]   = {};
-    wchar_t extra[2048]  = {};
-    uc.lpszHostName      = host;
-    uc.dwHostNameLength  = ARRAYSIZE(host);
-    uc.lpszUrlPath       = path;
-    uc.dwUrlPathLength   = ARRAYSIZE(path);
-    uc.lpszExtraInfo     = extra;
-    uc.dwExtraInfoLength = ARRAYSIZE(extra);
-    if (!WinHttpCrackUrl(url.c_str(), 0, 0, &uc))
-        return false;
-
-    HANDLE file = CreateFileW(dest.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-                              FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE)
-        return false;
-
-    const std::wstring fullPath = std::wstring(path) + extra;
-    const bool         ok =
-        HttpsGet(host, uc.nPort, fullPath.c_str(), nullptr, 30000, // generous receive for the binary
-                 [file](const char* data, DWORD n) {
-                     DWORD written = 0;
-                     return WriteFile(file, data, n, &written, nullptr) && written == n;
-                 });
-    CloseHandle(file);
-    if (!ok)
-        DeleteFileW(dest.c_str());
-    return ok;
-}
 } // namespace
 
 namespace dk
@@ -271,7 +208,6 @@ void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated)
             {
                 result->latest      = Widen(tag);
                 result->available   = IsNewerVersion(result->latest, result->current);
-                result->downloadUrl = Widen(ExtractSetupAssetUrl(body));
             }
             else
             {
@@ -288,24 +224,4 @@ void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated)
     }).detach();
 }
 
-void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring url)
-{
-    std::thread([notify, msg, url] {
-        auto* res = new DownloadResult();
-
-        wchar_t tmp[MAX_PATH] = {};
-        if (GetTempPathW(MAX_PATH, tmp) != 0)
-        {
-            const std::wstring dest = std::wstring(tmp) + L"dock-update-setup.exe";
-            if (!url.empty() && DownloadToFile(url, dest))
-            {
-                res->ok   = true;
-                res->path = dest;
-            }
-        }
-
-        if (!PostMessageW(notify, msg, 0, reinterpret_cast<LPARAM>(res)))
-            delete res; // the window is gone; don't leak
-    }).detach();
-}
 } // namespace dk
