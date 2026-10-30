@@ -76,6 +76,20 @@ std::string ExtractJsonString(const std::string& json, const char* key)
 }
 
 // Extract a named release asset from GitHub's release metadata.
+// Release asset names are constrained to the ASCII versioned filename format.
+std::string NarrowAscii(const std::wstring& value)
+{
+    std::string result;
+    result.reserve(value.size());
+    for (const wchar_t c : value)
+    {
+        if (c < 0 || c > 0x7f)
+            return {};
+        result.push_back(static_cast<char>(c));
+    }
+    return result;
+}
+
 std::wstring ReleaseAsset(const std::string& json, const std::string& assetName)
 {
     // GitHub's JSON usually has whitespace after colons.
@@ -303,7 +317,7 @@ void CheckForUpdateAsync(HWND notify, UINT msg, bool userInitiated)
                 result->latest      = Widen(tag);
                 result->available   = IsNewerVersion(result->latest, result->current);
                 result->filename = L"dock-" + Widen(tag.substr(tag[0] == 'v' ? 1 : 0)) + L"-setup.exe";
-                result->downloadUrl = ReleaseAsset(body, std::string(result->filename.begin(), result->filename.end()));
+                result->downloadUrl = ReleaseAsset(body, NarrowAscii(result->filename));
                 result->checksumUrl = ReleaseAsset(body, "SHA256SUMS.txt");
                 if (!TrustedReleaseAsset(result->downloadUrl, result->filename) ||
                     !TrustedReleaseAsset(result->checksumUrl, L"SHA256SUMS.txt"))
@@ -344,7 +358,7 @@ void DownloadUpdateAsync(HWND notify, UINT msg, std::wstring installerUrl,
             std::string expected;
             if (gotChecksums)
             {
-                auto offset = checksums.find(std::string(filename.begin(),filename.end()));
+                auto offset = checksums.find(NarrowAscii(filename));
                 if (offset != std::string::npos)
                 {
                     size_t line = checksums.rfind('\n', offset);
