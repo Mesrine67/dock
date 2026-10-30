@@ -78,17 +78,28 @@ std::string ExtractJsonString(const std::string& json, const char* key)
 // Extract a named release asset from GitHub's release metadata.
 std::wstring ReleaseAsset(const std::string& json, const std::string& assetName)
 {
-    const std::string filename = "\\"name\\":\\"" + assetName + "\\"";
-    const size_t p = json.find(filename);
-    if (p == std::string::npos)
-        return L"";
-    const size_t next = json.find("\\"name\\":", p + filename.size());
-    const size_t pos = json.find("\\"browser_download_url\\":", p);
-    if (pos == std::string::npos || (next != std::string::npos && pos > next))
-        return L"";
-    const size_t colon = json.find(':', pos);
-    const size_t quote = json.find('"', colon + 1);
-    return quote == std::string::npos ? L"" : Widen(ReadJsonStringAt(json, quote));
+    // GitHub's JSON usually has whitespace after colons.
+    size_t p = json.find("\"name\"");
+    while (p != std::string::npos)
+    {
+        const size_t colon = json.find(':', p + 6);
+        if (colon == std::string::npos) break;
+        const size_t quote = json.find('"', colon + 1);
+        if (quote == std::string::npos) break;
+        if (ReadJsonStringAt(json, quote) == assetName)
+        {
+            const size_t after = json.find("\"browser_download_url\"", quote + 1);
+            const size_t next = json.find("\"name\"", quote + 1);
+            if (after == std::string::npos || (next != std::string::npos && next < after))
+                return L"";
+            const size_t assetColon = json.find(':', after);
+            const size_t assetQuote = json.find('"', assetColon + 1);
+            return assetQuote == std::string::npos ? L"" :
+                Widen(ReadJsonStringAt(json, assetQuote));
+        }
+        p = json.find("\"name\"", quote + 1);
+    }
+    return L"";
 }
 
 bool TrustedReleaseAsset(const std::wstring& url, const std::wstring& expectedName)
