@@ -72,4 +72,5 @@ target_link_libraries(dock PRIVATE
     uxtheme
     comctl32
     shcore
-    winhttp)
+    winhttp
+    bcrypt)
