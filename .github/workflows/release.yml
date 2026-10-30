@@ -20,13 +20,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive version from tag
+      - name: Validate version tag
         id: ver
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v([0-9]+)\.([0-9]+)\.([0-9]+)$') {
+            throw "Release tag must have format vMAJOR.MINOR.PATCH."
+          }
+          $version = $tag.Substring(1)
+          $projectLine = Select-String -Path "CMakeLists.txt" -Pattern "^\s*VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)" | Select-Object -First 1
+          if (-not $projectLine -or $projectLine.Matches[0].Groups[1].Value -ne $version) {
+            throw "Release tag version does not match CMakeLists.txt project version."
+          }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "dock version: $version"
+          Write-Host "Validated dock version: $version"
 
       # No -G: let CMake pick the newest installed Visual Studio generator, so this
       # keeps working when windows-latest moves from VS 2022 to VS 2026.
@@ -53,22 +61,26 @@ jobs:
           & $iscc "/DMyAppVersion=${{ steps.ver.outputs.version }}" "packaging\dock.iss"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
-      - name: Publish GitHub release
+      - name: Prepare checksum for installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $setup = "packaging/Output/dock-$version-setup.exe"
+          if (-not (Test-Path -LiteralPath $setup)) { throw "Missing installer: $setup" }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
+          "$hash  dock-$version-setup.exe" | Set-Content -Encoding ascii "packaging/Output/SHA256SUMS.txt"
+
+      - name: Create draft GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = "${{ steps.ver.outputs.version }}"
-          $tag     = "${{ github.ref_name }}"
-          $setup   = "packaging\Output\dock-$version-setup.exe"
-          if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
-
-          # Idempotent: create the release, or just (re)upload the asset if it already exists.
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $tag already exists - uploading asset (clobber)."
-            gh release upload $tag $setup --clobber
-          } else {
-            Write-Host "Creating release $tag."
-            gh release create $tag $setup --title "dock $version" --generate-notes
+          $tag = "${{ github.ref_name }}"
+          $setup = "packaging/Output/dock-$version-setup.exe"
+          $checksums = "packaging/Output/SHA256SUMS.txt"
+          if (-not (Test-Path -LiteralPath $setup) -or -not (Test-Path -LiteralPath $checksums)) {
+            throw "Missing release assets."
           }
+          gh release create $tag $setup $checksums --title "dock $version" --generate-notes --draft
+          if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed." }
